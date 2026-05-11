@@ -4,7 +4,10 @@
 /// for the implementation order.
 
 pub mod ble;
+pub mod client;
+pub mod device_info;
 pub mod packet;
+pub mod reboot;
 
 #[cfg(test)]
 mod tests {

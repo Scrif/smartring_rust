@@ -1,0 +1,168 @@
+use std::time::Duration;
+
+use btleplug::api::{Central, Characteristic, Peripheral as _, ScanFilter, WriteType};
+use btleplug::platform::{Adapter, Peripheral};
+use futures::StreamExt;
+use thiserror::Error;
+use tracing::debug;
+use uuid::Uuid;
+
+use crate::packet::{Packet, PacketError};
+
+/// NordicSemiconductor UART Service used by Colmi rings.
+const RX_UUID: Uuid = Uuid::from_u128(0x6e400002_b5a3_f393_e0a9_e50e24dcca9e);
+const TX_UUID: Uuid = Uuid::from_u128(0x6e400003_b5a3_f393_e0a9_e50e24dcca9e);
+
+/// How long to scan before looking up a peripheral by address or name.
+const SCAN_DURATION: Duration = Duration::from_secs(5);
+
+/// Per-reply receive timeout.
+const RECV_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[derive(Debug, Error)]
+pub enum ClientError {
+    #[error("device not found: {0}")]
+    DeviceNotFound(String),
+    #[error("RX characteristic not found — is this a Colmi ring?")]
+    RxNotFound,
+    #[error("TX characteristic not found — is this a Colmi ring?")]
+    TxNotFound,
+    #[error("timed out waiting for reply packet")]
+    Timeout,
+    #[error("unexpected packet length: expected 16 bytes, got {0}")]
+    InvalidPacketLength(usize),
+    #[error("BLE error: {0}")]
+    Btleplug(#[from] btleplug::Error),
+    #[error("packet error: {0}")]
+    Packet(#[from] PacketError),
+}
+
+/// A connected BLE client for a Colmi ring.
+pub struct Client {
+    peripheral: Peripheral,
+    /// The write (client→ring) characteristic.
+    rx: Characteristic,
+}
+
+impl Client {
+    /// Connect to a ring by its Bluetooth address (preferred on Linux/Windows).
+    pub async fn connect(adapter: &Adapter, address: &str) -> Result<Self, ClientError> {
+        debug!("scanning to locate device with address {}", address);
+        adapter.start_scan(ScanFilter::default()).await?;
+        tokio::time::sleep(SCAN_DURATION).await;
+        adapter.stop_scan().await?;
+
+        let peripherals = adapter.peripherals().await?;
+        for p in peripherals {
+            if let Ok(Some(props)) = p.properties().await {
+                if props.address.to_string().eq_ignore_ascii_case(address) {
+                    return Self::from_peripheral(p).await;
+                }
+            }
+        }
+        Err(ClientError::DeviceNotFound(address.to_string()))
+    }
+
+    /// Connect to a ring by device name (reliable on macOS where addresses are session UUIDs).
+    pub async fn connect_by_name(adapter: &Adapter, name: &str) -> Result<Self, ClientError> {
+        debug!("scanning to locate device with name {}", name);
+        adapter.start_scan(ScanFilter::default()).await?;
+        tokio::time::sleep(SCAN_DURATION).await;
+        adapter.stop_scan().await?;
+
+        let peripherals = adapter.peripherals().await?;
+        for p in peripherals {
+            if let Ok(Some(props)) = p.properties().await {
+                if props.local_name.as_deref() == Some(name) {
+                    return Self::from_peripheral(p).await;
+                }
+            }
+        }
+        Err(ClientError::DeviceNotFound(name.to_string()))
+    }
+
+    async fn from_peripheral(peripheral: Peripheral) -> Result<Self, ClientError> {
+        peripheral.connect().await?;
+        peripheral.discover_services().await?;
+
+        let chars = peripheral.characteristics();
+
+        let rx = chars
+            .iter()
+            .find(|c| c.uuid == RX_UUID)
+            .ok_or(ClientError::RxNotFound)?
+            .clone();
+
+        let tx = chars
+            .iter()
+            .find(|c| c.uuid == TX_UUID)
+            .ok_or(ClientError::TxNotFound)?
+            .clone();
+
+        peripheral.subscribe(&tx).await?;
+        debug!("connected and subscribed to TX notifications");
+
+        Ok(Client { peripheral, rx })
+    }
+
+    /// Write `packet` to the ring and collect `expected_replies` notification packets.
+    ///
+    /// Pass `expected_replies = 0` for fire-and-forget commands (e.g. reboot).
+    pub async fn send_recv(
+        &self,
+        packet: Packet,
+        expected_replies: usize,
+    ) -> Result<Vec<Packet>, ClientError> {
+        if expected_replies == 0 {
+            self.peripheral
+                .write(&self.rx, &packet.as_bytes(), WriteType::WithoutResponse)
+                .await?;
+            return Ok(vec![]);
+        }
+
+        // Open the notification stream BEFORE writing so we cannot miss a fast reply.
+        let mut stream = self.peripheral.notifications().await?;
+
+        self.peripheral
+            .write(&self.rx, &packet.as_bytes(), WriteType::WithoutResponse)
+            .await?;
+
+        let mut replies = Vec::with_capacity(expected_replies);
+        while replies.len() < expected_replies {
+            match tokio::time::timeout(RECV_TIMEOUT, stream.next()).await {
+                Ok(Some(notif)) if notif.uuid == TX_UUID => {
+                    let len = notif.value.len();
+                    let raw: [u8; 16] = notif.value.try_into().map_err(|_| {
+                        ClientError::InvalidPacketLength(len)
+                    })?;
+                    replies.push(Packet::from_bytes(raw)?);
+                }
+                Ok(Some(_)) => {
+                    // Notification from a different characteristic; skip.
+                }
+                Ok(None) => break,
+                Err(_) => return Err(ClientError::Timeout),
+            }
+        }
+
+        Ok(replies)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Integration tests require a physical ring and are excluded from CI.
+    // Run manually with: cargo test -p smartring-core client -- --ignored
+
+    #[tokio::test]
+    #[ignore = "requires a connected Colmi ring"]
+    async fn connect_by_address_round_trip() {
+        // Placeholder — fill in a real address before running.
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a connected Colmi ring"]
+    async fn connect_by_name_round_trip() {
+        // Placeholder — fill in a real device name before running.
+    }
+}

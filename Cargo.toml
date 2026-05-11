@@ -14,6 +14,8 @@ license = "MIT"
 [workspace.dependencies]
 # BLE
 btleplug = "0.12"
+uuid = "1"
+futures = "0.3"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

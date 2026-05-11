@@ -1,5 +1,7 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use smartring_core::ble::get_default_adapter;
+use smartring_core::client::Client;
 
 mod commands;
 
@@ -31,13 +33,41 @@ struct Cli {
 enum Commands {
     /// Discover nearby Colmi-compatible rings
     Scan(commands::scan::ScanArgs),
+
+    /// Print firmware version, hardware model, and battery level
+    Info,
+
+    /// Reboot the ring
+    Reboot,
+}
+
+/// Build a connected [`Client`] from the global `--address` / `--name` flags.
+///
+/// Errors if neither flag is provided (device commands require one or the other).
+async fn get_client(cli: &Cli) -> Result<Client> {
+    let adapter = get_default_adapter()
+        .await
+        .context("failed to initialise Bluetooth adapter")?;
+
+    match (&cli.address, &cli.name) {
+        (Some(addr), None) => Client::connect(&adapter, addr)
+            .await
+            .context("could not connect by address"),
+        (None, Some(name)) => Client::connect_by_name(&adapter, name)
+            .await
+            .context("could not connect by name"),
+        (None, None) => {
+            anyhow::bail!("--address or --name is required for this command")
+        }
+        (Some(_), Some(_)) => unreachable!("mutual exclusion already checked"),
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialise tracing. In --debug mode, show all spans; otherwise warnings only.
+    // Initialise tracing. In --debug mode show all spans; otherwise warnings only.
     let level = if cli.debug { "debug" } else { "warn" };
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -47,14 +77,21 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    // Validate mutually-exclusive address/name flags for device commands.
-    // (scan and utility subcommands that don't require a device are exempt.)
+    // --address and --name are mutually exclusive.
     if cli.address.is_some() && cli.name.is_some() {
         anyhow::bail!("--address and --name are mutually exclusive; pass one or the other");
     }
 
     match cli.command {
         Commands::Scan(args) => commands::scan::run(args).await?,
+        Commands::Info => {
+            let client = get_client(&cli).await?;
+            commands::info::run(&client).await?;
+        }
+        Commands::Reboot => {
+            let client = get_client(&cli).await?;
+            commands::reboot::run(&client).await?;
+        }
     }
 
     Ok(())

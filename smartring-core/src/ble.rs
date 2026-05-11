@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
-use btleplug::platform::Manager;
+use btleplug::platform::{Adapter, Manager};
 use thiserror::Error;
 use tracing::{debug, warn};
 
@@ -43,6 +43,16 @@ pub fn filter_colmi(devices: Vec<DiscoveredDevice>) -> Vec<DiscoveredDevice> {
         .into_iter()
         .filter(|d| d.name.as_deref().map(is_colmi_device).unwrap_or(false))
         .collect()
+}
+
+/// Return the first available Bluetooth adapter on this system.
+///
+/// This is a convenience function for CLI commands that need an adapter before
+/// constructing a [`crate::client::Client`].
+pub async fn get_default_adapter() -> Result<Adapter, BleError> {
+    let manager = Manager::new().await?;
+    let adapters = manager.adapters().await?;
+    adapters.into_iter().next().ok_or(BleError::NoAdapter)
 }
 
 /// Scan for BLE peripherals for `duration`.
