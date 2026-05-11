@@ -1,0 +1,24 @@
+[package]
+name = "smartring"
+description = "CLI for interacting with Colmi-family smart rings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "smartring"
+path = "src/main.rs"
+
+[dependencies]
+smartring-core = { path = "../smartring-core" }
+btleplug.workspace = true
+tokio.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -1,0 +1,57 @@
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+
+/// Interact with Colmi-family smart rings over Bluetooth LE.
+#[derive(Debug, Parser)]
+#[command(name = "smartring", version, about, long_about = None)]
+struct Cli {
+    /// Bluetooth address of the ring (preferred on Linux/Windows)
+    #[arg(long, global = true)]
+    address: Option<String>,
+
+    /// Bluetooth device name of the ring (required on macOS; triggers a scan)
+    #[arg(long, global = true)]
+    name: Option<String>,
+
+    /// Enable verbose BLE packet logging
+    #[arg(long, global = true, default_value_t = false)]
+    debug: bool,
+
+    /// Write all received BLE packets to a capture file in captures/
+    #[arg(long, global = true, default_value_t = false)]
+    record: bool,
+
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    // Subcommands are added as each task is implemented.
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    // Initialise tracing. In --debug mode, show all spans; otherwise warnings only.
+    let level = if cli.debug { "debug" } else { "warn" };
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(level)),
+        )
+        .with_writer(std::io::stderr)
+        .init();
+
+    // Validate mutually-exclusive address/name flags for device commands.
+    // (scan and utility subcommands that don't require a device are exempt.)
+    match (&cli.address, &cli.name) {
+        (Some(_), Some(_)) => {
+            anyhow::bail!("--address and --name are mutually exclusive; pass one or the other");
+        }
+        _ => {}
+    }
+
+    match cli.command {}
+}
