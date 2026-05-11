@@ -3,6 +3,7 @@
 /// Public modules are added as each feature is implemented. See `tasks/plan.md`
 /// for the implementation order.
 
+pub mod ble;
 pub mod packet;
 
 #[cfg(test)]

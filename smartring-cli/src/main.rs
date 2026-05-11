@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+mod commands;
+
 /// Interact with Colmi-family smart rings over Bluetooth LE.
 #[derive(Debug, Parser)]
 #[command(name = "smartring", version, about, long_about = None)]
@@ -27,7 +29,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    // Subcommands are added as each task is implemented.
+    /// Discover nearby Colmi-compatible rings
+    Scan(commands::scan::ScanArgs),
 }
 
 #[tokio::main]
@@ -46,12 +49,13 @@ async fn main() -> Result<()> {
 
     // Validate mutually-exclusive address/name flags for device commands.
     // (scan and utility subcommands that don't require a device are exempt.)
-    match (&cli.address, &cli.name) {
-        (Some(_), Some(_)) => {
-            anyhow::bail!("--address and --name are mutually exclusive; pass one or the other");
-        }
-        _ => {}
+    if cli.address.is_some() && cli.name.is_some() {
+        anyhow::bail!("--address and --name are mutually exclusive; pass one or the other");
     }
 
-    match cli.command {}
+    match cli.command {
+        Commands::Scan(args) => commands::scan::run(args).await?,
+    }
+
+    Ok(())
 }
