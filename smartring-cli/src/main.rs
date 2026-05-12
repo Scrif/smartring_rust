@@ -43,6 +43,9 @@ enum Commands {
     /// Synchronise the ring's clock to the current UTC time
     SetTime(commands::set_time::SetTimeArgs),
 
+    /// Fetch the heart rate log for a given date (defaults to today)
+    GetHeartRateLog(commands::get_heart_rate_log::GetHeartRateLogArgs),
+
     /// Send a raw packet and print the reply bytes as hex
     Raw(commands::raw::RawArgs),
 }
@@ -115,6 +118,10 @@ async fn main() -> Result<()> {
         Commands::SetTime(ref args) => {
             let client = get_client(&cli).await?;
             commands::set_time::run(args, &client).await?;
+        }
+        Commands::GetHeartRateLog(ref args) => {
+            let client = get_client(&cli).await?;
+            commands::get_heart_rate_log::run(args, &client).await?;
         }
         Commands::Raw(ref args) => {
             let client = get_client(&cli).await?;

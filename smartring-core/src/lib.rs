@@ -6,6 +6,7 @@
 pub mod ble;
 pub mod client;
 pub mod device_info;
+pub mod hr;
 pub mod packet;
 pub mod reboot;
 pub mod set_time;
