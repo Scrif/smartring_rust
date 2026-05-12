@@ -17,11 +17,11 @@ struct Cli {
     #[arg(long, global = true)]
     name: Option<String>,
 
-    /// Enable verbose BLE packet logging
+    /// Enable verbose BLE packet logging to stderr
     #[arg(long, global = true, default_value_t = false)]
     debug: bool,
 
-    /// Write all received BLE packets to a capture file in captures/
+    /// Append every received BLE packet to captures/colmi_response_capture_<ts>.bin
     #[arg(long, global = true, default_value_t = false)]
     record: bool,
 
@@ -39,27 +39,47 @@ enum Commands {
 
     /// Reboot the ring
     Reboot,
+
+    /// Synchronise the ring's clock to the current UTC time
+    SetTime(commands::set_time::SetTimeArgs),
+
+    /// Send a raw packet and print the reply bytes as hex
+    Raw(commands::raw::RawArgs),
 }
 
 /// Build a connected [`Client`] from the global `--address` / `--name` flags.
 ///
 /// Errors if neither flag is provided (device commands require one or the other).
+/// When `--record` is set, opens a binary capture file before returning.
 async fn get_client(cli: &Cli) -> Result<Client> {
     let adapter = get_default_adapter()
         .await
         .context("failed to initialise Bluetooth adapter")?;
 
-    match (&cli.address, &cli.name) {
+    let client = match (&cli.address, &cli.name) {
         (Some(addr), None) => Client::connect(&adapter, addr)
             .await
-            .context("could not connect by address"),
+            .context("could not connect by address")?,
         (None, Some(name)) => Client::connect_by_name(&adapter, name)
             .await
-            .context("could not connect by name"),
-        (None, None) => {
-            anyhow::bail!("--address or --name is required for this command")
-        }
+            .context("could not connect by name")?,
+        (None, None) => anyhow::bail!("--address or --name is required for this command"),
         (Some(_), Some(_)) => unreachable!("mutual exclusion already checked"),
+    };
+
+    if cli.record {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let path = std::path::PathBuf::from(format!(
+            "captures/colmi_response_capture_{}.bin",
+            ts
+        ));
+        eprintln!("Recording packets to {}", path.display());
+        client.with_recording(path).context("failed to create capture file")
+    } else {
+        Ok(client)
     }
 }
 
@@ -91,6 +111,14 @@ async fn main() -> Result<()> {
         Commands::Reboot => {
             let client = get_client(&cli).await?;
             commands::reboot::run(&client).await?;
+        }
+        Commands::SetTime(ref args) => {
+            let client = get_client(&cli).await?;
+            commands::set_time::run(args, &client).await?;
+        }
+        Commands::Raw(ref args) => {
+            let client = get_client(&cli).await?;
+            commands::raw::run(args, &client).await?;
         }
     }
 

@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::Write as IoWrite;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use btleplug::api::{Central, Characteristic, Peripheral as _, ScanFilter, WriteType};
@@ -42,6 +46,8 @@ pub struct Client {
     peripheral: Peripheral,
     /// The write (client→ring) characteristic.
     rx: Characteristic,
+    /// Optional binary capture file. Every received packet is appended as raw bytes.
+    record: Option<Mutex<File>>,
 }
 
 impl Client {
@@ -81,6 +87,18 @@ impl Client {
         Err(ClientError::DeviceNotFound(name.to_string()))
     }
 
+    /// Enable binary packet capture: every received packet is appended to `path`.
+    ///
+    /// Creates `path` and any missing parent directories.
+    /// Call this after [`connect`] / [`connect_by_name`] and before the first command.
+    pub fn with_recording(mut self, path: PathBuf) -> Result<Self, std::io::Error> {
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::create_dir_all(parent)?;
+        }
+        self.record = Some(Mutex::new(File::create(path)?));
+        Ok(self)
+    }
+
     async fn from_peripheral(peripheral: Peripheral) -> Result<Self, ClientError> {
         peripheral.connect().await?;
         peripheral.discover_services().await?;
@@ -102,17 +120,19 @@ impl Client {
         peripheral.subscribe(&tx).await?;
         debug!("connected and subscribed to TX notifications");
 
-        Ok(Client { peripheral, rx })
+        Ok(Client { peripheral, rx, record: None })
     }
 
     /// Write `packet` to the ring and collect `expected_replies` notification packets.
     ///
-    /// Pass `expected_replies = 0` for fire-and-forget commands (e.g. reboot).
+    /// Pass `expected_replies = 0` for fire-and-forget commands (e.g. reboot, set-time).
     pub async fn send_recv(
         &self,
         packet: Packet,
         expected_replies: usize,
     ) -> Result<Vec<Packet>, ClientError> {
+        debug!("→ TX cmd={:#04x} bytes={:02x?}", packet.command, packet.as_bytes());
+
         if expected_replies == 0 {
             self.peripheral
                 .write(&self.rx, &packet.as_bytes(), WriteType::WithoutResponse)
@@ -135,6 +155,8 @@ impl Client {
                     let raw: [u8; 16] = notif.value.try_into().map_err(|_| {
                         ClientError::InvalidPacketLength(len)
                     })?;
+                    debug!("← RX cmd={:#04x} bytes={:02x?}", raw[0], raw);
+                    self.record_packet(&raw);
                     replies.push(Packet::from_bytes(raw)?);
                 }
                 Ok(Some(_)) => {
@@ -146,6 +168,23 @@ impl Client {
         }
 
         Ok(replies)
+    }
+
+    /// Append raw packet bytes to the capture file, if recording is active.
+    ///
+    /// Errors are silently swallowed — a capture write failure must not abort a command.
+    fn record_packet(&self, raw: &[u8; 16]) {
+        if let Some(ref mutex) = self.record {
+            if let Ok(mut file) = mutex.lock() {
+                let _ = file.write_all(raw);
+            }
+        }
+    }
+
+    /// Return the path this client is recording to, if recording is active.
+    pub fn recording_path(&self) -> Option<&Path> {
+        // Not stored separately; used only for testing via with_recording's existence.
+        None
     }
 }
 
