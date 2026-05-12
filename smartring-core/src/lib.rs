@@ -10,6 +10,7 @@ pub mod hr;
 pub mod packet;
 pub mod reboot;
 pub mod set_time;
+pub mod steps;
 
 #[cfg(test)]
 mod tests {

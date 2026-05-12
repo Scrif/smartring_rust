@@ -170,6 +170,59 @@ impl Client {
         Ok(replies)
     }
 
+    /// Write `packet` and collect replies until `is_done(&replies)` returns true.
+    ///
+    /// Stops early when `is_done` signals completion, the `max_packets` cap is hit,
+    /// the notification stream closes, or the per-packet [`RECV_TIMEOUT`] fires.
+    ///
+    /// Use this for commands with variable-length responses (e.g. sport-detail,
+    /// real-time readings) where the total packet count is not known upfront.
+    pub async fn send_recv_until<F>(
+        &self,
+        packet: Packet,
+        max_packets: usize,
+        is_done: F,
+    ) -> Result<Vec<Packet>, ClientError>
+    where
+        F: Fn(&[Packet]) -> bool,
+    {
+        debug!("→ TX cmd={:#04x} bytes={:02x?}", packet.command, packet.as_bytes());
+
+        let mut stream = self.peripheral.notifications().await?;
+
+        self.peripheral
+            .write(&self.rx, &packet.as_bytes(), WriteType::WithoutResponse)
+            .await?;
+
+        let mut replies = Vec::new();
+        loop {
+            if replies.len() >= max_packets {
+                break;
+            }
+            match tokio::time::timeout(RECV_TIMEOUT, stream.next()).await {
+                Ok(Some(notif)) if notif.uuid == TX_UUID => {
+                    let len = notif.value.len();
+                    let raw: [u8; 16] = notif.value.try_into().map_err(|_| {
+                        ClientError::InvalidPacketLength(len)
+                    })?;
+                    debug!("← RX cmd={:#04x} bytes={:02x?}", raw[0], raw);
+                    self.record_packet(&raw);
+                    replies.push(Packet::from_bytes(raw)?);
+                    if is_done(&replies) {
+                        break;
+                    }
+                }
+                Ok(Some(_)) => {
+                    // Notification from a different characteristic; skip.
+                }
+                Ok(None) => break,
+                Err(_) => return Err(ClientError::Timeout),
+            }
+        }
+
+        Ok(replies)
+    }
+
     /// Append raw packet bytes to the capture file, if recording is active.
     ///
     /// Errors are silently swallowed — a capture write failure must not abort a command.

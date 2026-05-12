@@ -4,6 +4,7 @@ use smartring_core::ble::get_default_adapter;
 use smartring_core::client::Client;
 
 mod commands;
+mod output;
 
 /// Interact with Colmi-family smart rings over Bluetooth LE.
 #[derive(Debug, Parser)]
@@ -45,6 +46,9 @@ enum Commands {
 
     /// Fetch the heart rate log for a given date (defaults to today)
     GetHeartRateLog(commands::get_heart_rate_log::GetHeartRateLogArgs),
+
+    /// Fetch sport-detail (step) data for a given date (defaults to today)
+    GetSteps(commands::get_steps::GetStepsArgs),
 
     /// Send a raw packet and print the reply bytes as hex
     Raw(commands::raw::RawArgs),
@@ -122,6 +126,10 @@ async fn main() -> Result<()> {
         Commands::GetHeartRateLog(ref args) => {
             let client = get_client(&cli).await?;
             commands::get_heart_rate_log::run(args, &client).await?;
+        }
+        Commands::GetSteps(ref args) => {
+            let client = get_client(&cli).await?;
+            commands::get_steps::run(args, &client).await?;
         }
         Commands::Raw(ref args) => {
             let client = get_client(&cli).await?;
