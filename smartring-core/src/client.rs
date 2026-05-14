@@ -60,10 +60,11 @@ impl Client {
 
         let peripherals = adapter.peripherals().await?;
         for p in peripherals {
-            if let Ok(Some(props)) = p.properties().await {
-                if props.address.to_string().eq_ignore_ascii_case(address) {
-                    return Self::from_peripheral(p).await;
-                }
+            // Compare against p.id() — on macOS this is the per-session UUID that
+            // btleplug::api::PeripheralProperties::address cannot surface (it returns
+            // an all-zero BDAddr because Core Bluetooth withholds hardware MACs).
+            if p.id().to_string().eq_ignore_ascii_case(address) {
+                return Self::from_peripheral(p).await;
             }
         }
         Err(ClientError::DeviceNotFound(address.to_string()))

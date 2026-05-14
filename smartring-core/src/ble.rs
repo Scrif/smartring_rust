@@ -78,7 +78,11 @@ pub async fn scan(duration: Duration) -> Result<Vec<DiscoveredDevice>, BleError>
             Ok(Some(props)) => {
                 devices.push(DiscoveredDevice {
                     name: props.local_name,
-                    address: props.address.to_string(),
+                    // Use the peripheral's platform ID, not props.address (a BDAddr).
+                    // On macOS, Core Bluetooth never exposes hardware MACs — props.address
+                    // is all-zeros. peripheral.id() returns the correct per-session UUID
+                    // on macOS and the MAC string on Linux/Windows.
+                    address: peripheral.id().to_string(),
                     rssi: props.rssi,
                 });
             }
@@ -178,5 +182,26 @@ mod tests {
 
         let filtered = filter_colmi(devices);
         assert_eq!(filtered.len(), 2);
+    }
+
+    /// Verifies that discovered devices expose a non-zero platform identifier as their address.
+    ///
+    /// On macOS, Core Bluetooth never exposes hardware MACs; btleplug assigns each peripheral
+    /// a per-session UUID (e.g. "6F4066B7-C831-D78E-396C-DE27CE3FBF4E"). Reporting
+    /// "00:00:00:00:00:00" is a bug — this test guards against it.
+    ///
+    /// Run manually with: cargo test -p smartring-core -- --ignored scan_address_is_not_all_zeros
+    #[tokio::test]
+    #[ignore = "requires a nearby Colmi ring and a Bluetooth adapter"]
+    async fn scan_address_is_not_all_zeros() {
+        let devices = scan(std::time::Duration::from_secs(5)).await.expect("scan failed");
+        let colmi = filter_colmi(devices);
+        assert!(!colmi.is_empty(), "no Colmi ring found — move ring closer and retry");
+        for device in &colmi {
+            assert_ne!(
+                device.address, "00:00:00:00:00:00",
+                "address must be a platform UUID (macOS) or MAC (Linux/Windows), not all-zeros"
+            );
+        }
     }
 }
