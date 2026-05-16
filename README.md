@@ -1,6 +1,6 @@
 # SmartRing - Rust
 
-A self-contained CLI for discovering, connecting to, and reading data from Colmi-family smart rings (R02, R06, R10, and compatible OEM variants) over Bluetooth LE.
+An open-source, 100% offline, self-contained CLI for discovering, connecting to, and reading data from Colmi-family smart rings (R02, R06, R10, and compatible OEM variants) over Bluetooth LE.
 
 The only other mature client for these rings is [colmi_r02_client](https://github.com/tahnok/colmi_r02_client) — a Python library that requires a runtime and isn't easily redistributable. 
 
@@ -132,9 +132,3 @@ smartring_rust/
 ```
 
 `smartring-core` has no CLI or I/O concerns and can be reused as a library by a future TUI or GUI frontend.
-
----
-
-## License
-
-MIT
