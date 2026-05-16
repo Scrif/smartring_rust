@@ -50,6 +50,9 @@ enum Commands {
     /// Take a real-time sensor reading (heart-rate or spo2)
     GetRealTime(commands::get_real_time::GetRealTimeArgs),
 
+    /// Sync ring data to a local SQLite database
+    Sync(commands::sync::SyncArgs),
+
     /// Fetch sport-detail (step) data for a given date (defaults to today)
     GetSteps(commands::get_steps::GetStepsArgs),
 
@@ -125,6 +128,11 @@ async fn main() -> Result<()> {
         Commands::SetTime(ref args) => {
             let client = get_client(&cli).await?;
             commands::set_time::run(args, &client).await?;
+        }
+        Commands::Sync(ref args) => {
+            let client = get_client(&cli).await?;
+            let addr = client.peripheral_address();
+            commands::sync::run(args, &client, &addr, cli.name.as_deref()).await?;
         }
         Commands::GetHeartRateLog(ref args) => {
             let client = get_client(&cli).await?;

@@ -235,6 +235,14 @@ impl Client {
         }
     }
 
+    /// Returns the platform-specific identifier for the connected peripheral.
+    ///
+    /// On macOS this is the Core Bluetooth UUID (e.g. `"6F4066B7-C831-D78E-396C-DE27CE3FBF4E"`).
+    /// On Linux/Windows it is the hardware MAC address (e.g. `"AA:BB:CC:DD:EE:FF"`).
+    pub fn peripheral_address(&self) -> String {
+        self.peripheral.id().to_string()
+    }
+
     /// Return the path this client is recording to, if recording is active.
     pub fn recording_path(&self) -> Option<&Path> {
         // Not stored separately; used only for testing via with_recording's existence.
