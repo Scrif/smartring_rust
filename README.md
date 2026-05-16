@@ -38,7 +38,10 @@ Global flags available on all device commands: `--address`, `--name`, `--debug`,
 
 ### Prerequisites
 
+#### Global Requirements
 - Rust toolchain (stable) — install via [rustup](https://rustup.rs)
+
+#### OS Requirements
 - **macOS**: Bluetooth permission granted to Terminal / your shell
 - **Linux**: `libdbus-1-dev` and `pkg-config` (`sudo apt install libdbus-1-dev pkg-config`)
 - **Windows**: WinRT Bluetooth — no extra packages needed
