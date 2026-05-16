@@ -4,7 +4,7 @@ A self-contained CLI for discovering, connecting to, and reading data from Colmi
 
 The only other mature client for these rings is [colmi_r02_client](https://github.com/tahnok/colmi_r02_client) — a Python library that requires a runtime and isn't easily redistributable. 
 
-This project leans heavily on the work done in comli_r02_client, but is built entirely in Rust and compiles to a single binary with no runtime dependencies beyond system Bluetooth.
+Initial featureset in this project draws heavily from [colmi_r02_client](https://github.com/tahnok/colmi_r02_client), but is built entirely in Rust and compiles to a single binary with no runtime dependencies beyond system Bluetooth.
 
 ---
 
