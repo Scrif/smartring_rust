@@ -19,16 +19,17 @@ Initial featureset in this project draws heavily from [colmi_r02_client](https:/
 | `reboot` | Reboot the ring |
 | `set-time` | Sync the ring's clock to the current UTC time |
 | `get-heart-rate-log` | Fetch timestamped heart rate readings for a given date |
+| `get-real-time` | Take an on-demand heart rate or SpO2 reading |
 | `get-steps` | Fetch sport-detail (step count, calories, distance) for a given date |
+| `get-heart-rate-log-settings` | Read the ring's automatic HR logging configuration |
+| `set-heart-rate-log-settings` | Enable/disable automatic HR logging and set the interval |
+| `sync` | Pull heart rate data into a local SQLite database, incrementally |
 | `raw` | Send an arbitrary packet by hex and print the reply |
 
 Global flags available on all device commands: `--address`, `--name`, `--debug`, `--record`.
 
 ### Planned
 
-- `get-real-time` — on-demand heart rate and SpO2 readings (streaming)
-- `sync` — pull all data into a local SQLite database, incrementally
-- `get-heart-rate-log-settings` / `set-heart-rate-log-settings`
 - `completions` — shell completion scripts for bash, zsh, and fish
 - `--config` — default device address stored in `~/.config/smartring/config.toml`
 
