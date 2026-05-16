@@ -35,6 +35,12 @@ enum Commands {
     /// Discover nearby Colmi-compatible rings
     Scan(commands::scan::ScanArgs),
 
+    /// Read the ring's automatic heart rate logging settings
+    GetHeartRateLogSettings,
+
+    /// Update the ring's automatic heart rate logging settings
+    SetHeartRateLogSettings(commands::hr_settings::SetHrSettingsArgs),
+
     /// Print firmware version, hardware model, and battery level
     Info,
 
@@ -128,6 +134,14 @@ async fn main() -> Result<()> {
         Commands::SetTime(ref args) => {
             let client = get_client(&cli).await?;
             commands::set_time::run(args, &client).await?;
+        }
+        Commands::GetHeartRateLogSettings => {
+            let client = get_client(&cli).await?;
+            commands::hr_settings::run_get(&client).await?;
+        }
+        Commands::SetHeartRateLogSettings(ref args) => {
+            let client = get_client(&cli).await?;
+            commands::hr_settings::run_set(args, &client).await?;
         }
         Commands::Sync(ref args) => {
             let client = get_client(&cli).await?;
