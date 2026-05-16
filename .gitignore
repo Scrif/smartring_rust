@@ -3,3 +3,4 @@
 # In case someone overrides target-dir back to the default
 target/
 .DS_Store
+ring_data.sqlite

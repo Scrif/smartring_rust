@@ -5,6 +5,7 @@
 
 pub mod ble;
 pub mod client;
+pub mod db;
 pub mod device_info;
 pub mod hr;
 pub mod packet;
