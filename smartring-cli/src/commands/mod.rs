@@ -1,6 +1,7 @@
 pub mod get_heart_rate_log;
 pub mod get_real_time;
 pub mod get_steps;
+pub mod hr_settings;
 pub mod info;
 pub mod raw;
 pub mod reboot;

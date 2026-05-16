@@ -8,6 +8,7 @@ pub mod client;
 pub mod db;
 pub mod device_info;
 pub mod hr;
+pub mod hr_settings;
 pub mod packet;
 pub mod real_time;
 pub mod reboot;
