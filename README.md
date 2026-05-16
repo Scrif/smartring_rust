@@ -1,4 +1,4 @@
-# smartring-manager
+# SmartRing - Rust
 
 A self-contained CLI for discovering, connecting to, and reading data from Colmi-family smart rings (R02, R06, R10, and compatible OEM variants) over Bluetooth LE.
 
