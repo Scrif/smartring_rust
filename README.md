@@ -2,7 +2,9 @@
 
 A self-contained CLI for discovering, connecting to, and reading data from Colmi-family smart rings (R02, R06, R10, and compatible OEM variants) over Bluetooth LE.
 
-The only other mature client for these rings is [colmi_r02_client](https://github.com/tahnok/colmi_r02_client) — a Python library that requires a runtime and isn't easily redistributable. This project compiles to a single binary with no runtime dependencies beyond system Bluetooth.
+The only other mature client for these rings is [colmi_r02_client](https://github.com/tahnok/colmi_r02_client) — a Python library that requires a runtime and isn't easily redistributable. 
+
+This project leans heavily on the work done in comli_r02_client, but is built entirely in Rust and compiles to a single binary with no runtime dependencies beyond system Bluetooth.
 
 ---
 
@@ -112,7 +114,7 @@ smartring --address AA:BB:CC:DD:EE:FF raw --command 3 --replies 1
 
 ## Compatibility
 
-Tested against the Colmi R02. The following device name prefixes are recognised by `scan`:
+This project has only been tested against the Colmi R10. Currently, the following device name prefixes are recognised by `scan`:
 
 R01, R02, R03, R04, R05, R06, R07, R09, R10, COLMI, VK-5098, MERLIN, Hello Ring, RING1, boAtring, TR-R02, SE, EVOLVEO, GL-SR2, Blaupunkt, KSIX RING
 
