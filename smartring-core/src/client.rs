@@ -217,7 +217,10 @@ impl Client {
                     // Notification from a different characteristic; skip.
                 }
                 Ok(None) => break,
-                Err(_) => return Err(ClientError::Timeout),
+                // No packet arrived within RECV_TIMEOUT — the ring has stopped sending.
+                // Return whatever was collected; callers check for completeness via their
+                // own predicate or the outer wall-clock timeout.
+                Err(_) => break,
             }
         }
 
