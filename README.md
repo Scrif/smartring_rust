@@ -133,3 +133,9 @@ smartring_rust/
 ```
 
 `smartring-core` has no CLI or I/O concerns and can be reused as a library by a future TUI or GUI frontend.
+
+---
+## Useful Links
+I've relied on docs, information and/or code in these repositories as I've worked on this project.
+- https://github.com/tahnok/colmi_r02_client
+- https://github.com/Puxtril/colmi-docs
